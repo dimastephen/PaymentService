@@ -28,7 +28,7 @@ var availableCurrencies = map[string]Currency{
 func (c Currency) isValid() error {
 	_, ok := availableCurrencies[string(c)]
 	if !ok {
-		return fmt.Errorf("Currency %s is not available", string(c))
+		return fmt.Errorf("currency %s is not available", string(c))
 	}
 	return nil
 }
