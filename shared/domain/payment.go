@@ -84,7 +84,7 @@ func (p *Payment) TransitionTo(to PaymentStatus) error {
 	return &TransitionError{From: p.Status, To: to, PaymentId: p.Id}
 }
 
-func NewPayment(cmd CreatePayment) (*Payment, error) {
+func NewPayment(cmd *CreatePayment) (*Payment, error) {
 	if cmd.Amount <= 0 {
 		return nil, &ValidationError{
 			Message: "Amount must be greater than zero",
