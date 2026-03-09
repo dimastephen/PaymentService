@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/payment-service/shared/domain"
 	"github.com/payment-service/shared/kafka"
@@ -41,7 +40,7 @@ func NewHandler(commandTopic string, producer kafka.Producer, repo storage.Payme
 		repo:         repo,
 		mux:          mux,
 	}
-	mux.Get("/payments/{id}", handler.GetPayment)
+	mux.Get("/payments/{key}", handler.GetPayment)
 	mux.Post("/payments", handler.PostPayment)
 	mux.Handle("/metrics", promhttp.Handler())
 	return handler
@@ -50,17 +49,16 @@ func NewHandler(commandTopic string, producer kafka.Producer, repo storage.Payme
 func (h *Handler) GetPayment(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "GetPayment")
 	defer span.End()
-	slog.Info("get payment", "id", chi.URLParam(r, "id"))
-	id := chi.URLParam(r, "id")
-	uuid, err := uuid.Parse(id)
-	if err != nil {
-		slog.Error("failed to parse id", "id", id, "err", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		writeError(w, http.StatusBadRequest, err)
+	slog.Info("get payment", "idempotency", chi.URLParam(r, "key"))
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		slog.Error("get payment: no key provided")
+		span.RecordError(errors.New("no key provided"))
+		span.SetStatus(codes.Error, "no key provided")
+		writeError(w, http.StatusBadRequest, errors.New("no key provided"))
 		return
 	}
-	resp, err := h.repo.Get(ctx, uuid)
+	resp, err := h.repo.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, err)
@@ -76,7 +74,7 @@ func (h *Handler) GetPayment(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		writeError(w, http.StatusInternalServerError, err)
-		slog.Error("failed to write response", "id", id, "err", err)
+		slog.Error("failed to write response", "idempotency", resp.IdempotencyKey, "err", err)
 		return
 	}
 

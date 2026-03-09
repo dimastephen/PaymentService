@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/payment-service/shared/domain"
 )
 
@@ -31,10 +30,10 @@ func (p *paymentRepository) Update(ctx context.Context, payment *domain.Payment)
 	return err
 }
 
-func (p *paymentRepository) Get(ctx context.Context, paymentId uuid.UUID) (*domain.Payment, error) {
+func (p *paymentRepository) Get(ctx context.Context, idempotencyKey string) (*domain.Payment, error) {
 	model := &PaymentsModel{}
-	query := "SELECT id,status,amount,currency,merchant,idempotency_key,psp_transaction_id,created_at,updated_at,error_message FROM payments WHERE id = $1"
-	err := p.db.QueryRow(ctx, query, paymentId).Scan(&model.Id, &model.Status, &model.Amount, &model.Currency, &model.MerchantId, &model.IdempotencyKey, &model.PspTransactionId, &model.CreatedAt, &model.UpdatedAt, &model.Error)
+	query := "SELECT id,status,amount,currency,merchant,idempotency_key,psp_transaction_id,created_at,updated_at,error_message FROM payments WHERE idempotency_key = $1"
+	err := p.db.QueryRow(ctx, query, idempotencyKey).Scan(&model.Id, &model.Status, &model.Amount, &model.Currency, &model.MerchantId, &model.IdempotencyKey, &model.PspTransactionId, &model.CreatedAt, &model.UpdatedAt, &model.Error)
 	if err != nil {
 		return nil, err
 	}

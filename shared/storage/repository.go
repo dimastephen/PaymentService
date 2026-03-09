@@ -10,7 +10,7 @@ import (
 type PaymentRepository interface {
 	Create(ctx context.Context, payment *domain.Payment) error
 	Update(ctx context.Context, payment *domain.Payment) error
-	Get(ctx context.Context, id uuid.UUID) (*domain.Payment, error)
+	Get(ctx context.Context, idempotencyKey string) (*domain.Payment, error)
 }
 
 type PaymentsEventsRepository interface {
