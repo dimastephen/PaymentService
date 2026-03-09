@@ -1,0 +1,22 @@
+syntax = "proto3";
+package payment;
+option go_package = "shared/proto/gen/payment";
+
+message CreatePaymentCommand{
+  int64 amount = 1;
+  string currency = 2;
+  string idempotency_key = 3;
+  string merchant_id = 4;
+}
+
+message PaymentCompletedEvent {
+  string payment_id = 1;
+  string psp_transaction_id = 2;
+  int64 occurred_at = 3;  // unix timestamp
+}
+
+message PaymentFailedEvent {
+  string payment_id = 1;
+  string error_message = 2;
+  int64 occurred_at = 3;
+}

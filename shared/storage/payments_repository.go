@@ -19,8 +19,8 @@ func NewPaymentRepository(db TXDB) *paymentRepository {
 
 func (p *paymentRepository) Create(ctx context.Context, payment *domain.Payment) error {
 	model := fromDomain(payment)
-	query := "INSERT INTO payments(id,status,amount,currency,merchant,idempotency_key) VALUES ($1,$2,$3,$4,$5,$6)"
-	_, err := p.db.Exec(ctx, query, model.Id, model.Status, model.Amount, model.Currency, model.MerchantId, model.IdempotencyKey)
+	query := "INSERT INTO payments(id,status,amount,currency,merchant,idempotency_key,psp_transaction_id,error_message,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)"
+	_, err := p.db.Exec(ctx, query, model.Id, model.Status, model.Amount, model.Currency, model.MerchantId, model.IdempotencyKey, model.PspTransactionId, model.Error, model.CreatedAt, model.UpdatedAt)
 	return err
 }
 
@@ -33,7 +33,7 @@ func (p *paymentRepository) Update(ctx context.Context, payment *domain.Payment)
 
 func (p *paymentRepository) Get(ctx context.Context, paymentId uuid.UUID) (*domain.Payment, error) {
 	model := &PaymentsModel{}
-	query := "SELECT id,status,amount,currency,merchant_id,idempotency_key,psp_transaction_id,created_at,updated_at,error_message FROM payments WHERE id = $1"
+	query := "SELECT id,status,amount,currency,merchant,idempotency_key,psp_transaction_id,created_at,updated_at,error_message FROM payments WHERE id = $1"
 	err := p.db.QueryRow(ctx, query, paymentId).Scan(&model.Id, &model.Status, &model.Amount, &model.Currency, &model.MerchantId, &model.IdempotencyKey, &model.PspTransactionId, &model.CreatedAt, &model.UpdatedAt, &model.Error)
 	if err != nil {
 		return nil, err

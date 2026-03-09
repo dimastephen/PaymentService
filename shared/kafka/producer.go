@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type Producer interface {
@@ -30,6 +32,11 @@ func (p *SyncProducer) SendMessage(ctx context.Context, topic string, key []byte
 		Topic: topic,
 		Key:   sarama.ByteEncoder(key),
 		Value: sarama.ByteEncoder(value),
+	}
+	headers := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, headers)
+	for k, v := range headers {
+		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
 	}
 	_, _, err := p.producer.SendMessage(msg)
 

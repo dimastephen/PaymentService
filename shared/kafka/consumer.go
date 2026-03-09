@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type Handler func(ctx context.Context, key []byte, value []byte) error
@@ -41,7 +43,12 @@ func (c *consumer) Cleanup(sarama.ConsumerGroupSession) error {
 func (c *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	ch := claim.Messages()
 	for v := range ch {
-		err := c.fn(session.Context(), v.Key, v.Value)
+		headers := propagation.MapCarrier{}
+		for _, h := range v.Headers {
+			headers[string(h.Key)] = string(h.Value)
+		}
+		ctx := otel.GetTextMapPropagator().Extract(session.Context(), headers)
+		err := c.fn(ctx, v.Key, v.Value)
 		if err != nil {
 			fmt.Printf("Error on kafka message: %s\n", err)
 			continue
