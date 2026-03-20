@@ -85,27 +85,9 @@ func (p *Payment) TransitionTo(to PaymentStatus) error {
 }
 
 func NewPayment(cmd *CreatePayment) (*Payment, error) {
-	if cmd.Amount <= 0 {
-		return nil, &ValidationError{
-			Message: "Amount must be greater than zero",
-		}
-	}
-	if cmd.IdempotencyKey == "" {
-		return nil, &ValidationError{
-			Message: "IdempotencyKey must be set",
-		}
-	}
-
-	if err := cmd.Currency.isValid(); err != nil {
-		return nil, &ValidationError{
-			Message: err.Error(),
-		}
-	}
-
-	if len(cmd.MerchantID) == 0 {
-		return nil, &ValidationError{
-			Message: "MerchantID must be set",
-		}
+	err := cmd.Validate()
+	if err != nil {
+		return nil, err
 	}
 
 	return &Payment{

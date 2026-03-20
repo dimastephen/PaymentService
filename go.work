@@ -5,4 +5,5 @@ use (
 	./shared
 	worker
 	./test-client
+	./projection
 )

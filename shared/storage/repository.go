@@ -21,3 +21,9 @@ type ProcessedCommandsRepository interface {
 	IsProcessed(ctx context.Context, id string) (bool, error)
 	Save(ctx context.Context, idempotencyKey string, paymentId uuid.UUID) error
 }
+
+type OutboxRepository interface {
+	Add(ctx context.Context, topic string, key []byte, value []byte, headers map[string]string) error
+	GetUnsent(ctx context.Context, limit int) ([]OutboxMessage, error)
+	MarkSent(ctx context.Context, id int64) error
+}
