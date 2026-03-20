@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
-type Handler func(ctx context.Context, key []byte, value []byte) error
+type Handler func(ctx context.Context, key []byte, value []byte, headers map[string]string) error
 
 type Consumer interface {
 	Start(ctx context.Context) error
@@ -48,7 +48,7 @@ func (c *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 			headers[string(h.Key)] = string(h.Value)
 		}
 		ctx := otel.GetTextMapPropagator().Extract(session.Context(), headers)
-		err := c.fn(ctx, v.Key, v.Value)
+		err := c.fn(ctx, v.Key, v.Value, headers)
 		if err != nil {
 			fmt.Printf("Error on kafka message: %s\n", err)
 			continue

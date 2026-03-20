@@ -2,12 +2,12 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/payment-service/shared/domain"
-	"github.com/payment-service/shared/kafka"
 	pb "github.com/payment-service/shared/proto/gen/proto/payment"
 	"github.com/payment-service/shared/psp"
 	"github.com/payment-service/shared/storage"
@@ -24,19 +24,18 @@ type Worker interface {
 
 type WorkerHandler struct {
 	psp         psp.Provider
-	store       *storage.Storage
+	store       storage.TransactionManager
 	eventRepo   storage.PaymentsEventsRepository
 	commandRepo storage.ProcessedCommandsRepository
 	paymentRepo storage.PaymentRepository
-	producer    kafka.Producer
 	eventTopic  string
 }
 
-func NewWorkerHandler(psp psp.Provider, eventRepo storage.PaymentsEventsRepository, commandRepo storage.ProcessedCommandsRepository, paymentRepo storage.PaymentRepository, producer kafka.Producer, store *storage.Storage, eventTopic string) *WorkerHandler {
-	return &WorkerHandler{psp, store, eventRepo, commandRepo, paymentRepo, producer, eventTopic}
+func NewWorkerHandler(psp psp.Provider, eventRepo storage.PaymentsEventsRepository, commandRepo storage.ProcessedCommandsRepository, paymentRepo storage.PaymentRepository, store storage.TransactionManager, eventTopic string) *WorkerHandler {
+	return &WorkerHandler{psp, store, eventRepo, commandRepo, paymentRepo, eventTopic}
 }
 
-func (w *WorkerHandler) Handle(ctx context.Context, key []byte, value []byte) error {
+func (w *WorkerHandler) Handle(ctx context.Context, key []byte, value []byte, headers map[string]string) error {
 	start := time.Now()
 	ctx, span := tracer.Start(ctx, "Handle")
 	defer span.End()
@@ -66,6 +65,39 @@ func (w *WorkerHandler) Handle(ctx context.Context, key []byte, value []byte) er
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
+	event, err := w.createEvent(ctx, payment)
+	if err != nil {
+		slog.Error("Error creating event: ", "err", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	err = w.store.WithTransaction(ctx, func(tx storage.TXDB) error {
+		eventRepository := storage.NewEventRepository(tx)
+		outboxRepo := storage.NewOutboxRepository(tx)
+
+		err = eventRepository.Add(ctx, payment.Id, "payment_created", event)
+		if err != nil {
+			slog.Error("Error adding event: ", "err", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return err
+		}
+		headers["event_type"] = "payment_created"
+		err = outboxRepo.Add(ctx, w.eventTopic, []byte(payment.IdempotencyKey), event, headers)
+		if err != nil {
+			slog.Error("Error publishing event: ", "err", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
 	response, err := w.chargePSP(ctx, payment)
 	if err != nil {
 		slog.Error("Error charging payment: ", "err", err)
@@ -80,22 +112,21 @@ func (w *WorkerHandler) Handle(ctx context.Context, key []byte, value []byte) er
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	event, err := w.serializeEvent(ctx, payment)
+	event, err = w.serializeEvent(ctx, payment)
 	if err != nil {
 		slog.Error("Error serializing event: ", "err", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
+	headers = make(map[string]string)
+	headers["event_type"] = string(payment.Status)
 	err = w.store.WithTransaction(ctx, func(txdb storage.TXDB) error {
 		commandRepo := storage.NewCommandRepository(txdb)
 		eventRepo := storage.NewEventRepository(txdb)
-		paymentRepo := storage.NewPaymentRepository(txdb)
-		err = paymentRepo.Create(ctx, payment)
+		outboxRepo := storage.NewOutboxRepository(txdb)
+
 		slog.Debug("Starting payment creation")
-		if err != nil {
-			return err
-		}
 		err = eventRepo.Add(ctx, payment.Id, string(payment.Status), event)
 		if err != nil {
 			return err
@@ -104,15 +135,16 @@ func (w *WorkerHandler) Handle(ctx context.Context, key []byte, value []byte) er
 		if err != nil {
 			return err
 		}
+		err = outboxRepo.Add(ctx, w.eventTopic, []byte(payment.IdempotencyKey), event, headers)
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})
+
 	if err != nil {
-		return err
-	}
-	err = w.producer.SendMessage(ctx, w.eventTopic, []byte(payment.IdempotencyKey), event)
-	if err != nil {
-		slog.Error("Error publishing event: ", err.Error())
+		slog.Error("Error publishing event: ", "error", err.Error())
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
@@ -131,7 +163,7 @@ func (w *WorkerHandler) checkIdempotencyKey(ctx context.Context, key []byte) (bo
 		return false, err
 	}
 	if ok {
-		return true, err
+		return true, errors.New("Idempotency Key is already processed")
 	}
 	return false, err
 }
@@ -228,5 +260,24 @@ func (w *WorkerHandler) serializeEvent(ctx context.Context, payment *domain.Paym
 	default:
 		return nil, fmt.Errorf("invalid payment status")
 	}
+
+}
+
+func (w *WorkerHandler) createEvent(ctx context.Context, payment *domain.Payment) ([]byte, error) {
+	ctx, span := tracer.Start(ctx, "createEvent")
+	defer span.End()
+	created := &pb.PaymentCreatedEvent{
+		PaymentId:      payment.Id.String(),
+		Amount:         payment.Amount,
+		Currency:       string(payment.Currency),
+		IdempotencyKey: payment.IdempotencyKey,
+		MerchantId:     payment.MerchantID,
+		OccuredAt:      payment.CreatedAt.Unix(),
+	}
+	data, err := proto.Marshal(created)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 
 }

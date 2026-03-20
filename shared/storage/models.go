@@ -18,3 +18,13 @@ type PaymentsModel struct {
 	UpdatedAt        time.Time `db:"updated_at"`
 	Error            *string   `db:"error_message"`
 }
+
+type OutboxMessage struct {
+	Id        int64             `db:"id"`
+	Topic     string            `db:"topic"`
+	Key       []byte            `db:"key"`
+	Value     []byte            `db:"value"`
+	Headers   map[string]string `db:"headers"`
+	Sent      bool              `db:"sent"`
+	CreatedAt time.Time         `db:"created_at"`
+}

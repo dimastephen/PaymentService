@@ -9,3 +9,7 @@ scrape_configs:
   - job_name: worker
     static_configs:
       - targets: ['worker:9090']
+
+  - job_name: projection
+    static_configs:
+      - targets: ["projection:9091"]

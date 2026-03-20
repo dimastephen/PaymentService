@@ -21,3 +21,6 @@ migration-create:
 
 proto-gen:
 	PATH=$$PATH:./bin protoc --go_out=shared/proto/gen --go_opt=paths=source_relative proto/payment/payment.proto
+
+test:
+	go test ./shared/... ./worker/... ./api/... ./projection/... -v

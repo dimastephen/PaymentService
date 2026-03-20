@@ -9,7 +9,7 @@ import (
 )
 
 type Producer interface {
-	SendMessage(ctx context.Context, topic string, key []byte, value []byte) error
+	SendMessage(ctx context.Context, topic string, key []byte, value []byte, headers map[string]string) error
 	Close() error
 }
 
@@ -27,17 +27,21 @@ func NewSyncProducer(brokers []string) (*SyncProducer, error) {
 	}, nil
 }
 
-func (p *SyncProducer) SendMessage(ctx context.Context, topic string, key []byte, value []byte) error {
+func (p *SyncProducer) SendMessage(ctx context.Context, topic string, key []byte, value []byte, headers map[string]string) error {
 	msg := &sarama.ProducerMessage{
 		Topic: topic,
 		Key:   sarama.ByteEncoder(key),
 		Value: sarama.ByteEncoder(value),
 	}
-	headers := propagation.MapCarrier{}
-	otel.GetTextMapPropagator().Inject(ctx, headers)
+	traceHeaders := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, traceHeaders)
+	for k, v := range traceHeaders {
+		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
+	}
 	for k, v := range headers {
 		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
 	}
+
 	_, _, err := p.producer.SendMessage(msg)
 
 	return err

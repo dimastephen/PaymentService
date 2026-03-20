@@ -209,6 +209,90 @@ func (x *PaymentFailedEvent) GetOccurredAt() int64 {
 	return 0
 }
 
+type PaymentCreatedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PaymentId      string                 `protobuf:"bytes,1,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	Amount         int64                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	Currency       string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	MerchantId     string                 `protobuf:"bytes,5,opt,name=merchant_id,json=merchantId,proto3" json:"merchant_id,omitempty"`
+	OccuredAt      int64                  `protobuf:"varint,6,opt,name=occured_at,json=occuredAt,proto3" json:"occured_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PaymentCreatedEvent) Reset() {
+	*x = PaymentCreatedEvent{}
+	mi := &file_proto_payment_payment_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentCreatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentCreatedEvent) ProtoMessage() {}
+
+func (x *PaymentCreatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_payment_payment_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentCreatedEvent.ProtoReflect.Descriptor instead.
+func (*PaymentCreatedEvent) Descriptor() ([]byte, []int) {
+	return file_proto_payment_payment_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PaymentCreatedEvent) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
+	}
+	return ""
+}
+
+func (x *PaymentCreatedEvent) GetAmount() int64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *PaymentCreatedEvent) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *PaymentCreatedEvent) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *PaymentCreatedEvent) GetMerchantId() string {
+	if x != nil {
+		return x.MerchantId
+	}
+	return ""
+}
+
+func (x *PaymentCreatedEvent) GetOccuredAt() int64 {
+	if x != nil {
+		return x.OccuredAt
+	}
+	return 0
+}
+
 var File_proto_payment_payment_proto protoreflect.FileDescriptor
 
 const file_proto_payment_payment_proto_rawDesc = "" +
@@ -231,7 +315,17 @@ const file_proto_payment_payment_proto_rawDesc = "" +
 	"payment_id\x18\x01 \x01(\tR\tpaymentId\x12#\n" +
 	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x1f\n" +
 	"\voccurred_at\x18\x03 \x01(\x03R\n" +
-	"occurredAtB\x1aZ\x18shared/proto/gen/paymentb\x06proto3"
+	"occurredAt\"\xd1\x01\n" +
+	"\x13PaymentCreatedEvent\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x01 \x01(\tR\tpaymentId\x12\x16\n" +
+	"\x06amount\x18\x02 \x01(\x03R\x06amount\x12\x1a\n" +
+	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x12\x1f\n" +
+	"\vmerchant_id\x18\x05 \x01(\tR\n" +
+	"merchantId\x12\x1d\n" +
+	"\n" +
+	"occured_at\x18\x06 \x01(\x03R\toccuredAtB\x1aZ\x18shared/proto/gen/paymentb\x06proto3"
 
 var (
 	file_proto_payment_payment_proto_rawDescOnce sync.Once
@@ -245,11 +339,12 @@ func file_proto_payment_payment_proto_rawDescGZIP() []byte {
 	return file_proto_payment_payment_proto_rawDescData
 }
 
-var file_proto_payment_payment_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_proto_payment_payment_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_payment_payment_proto_goTypes = []any{
 	(*CreatePaymentCommand)(nil),  // 0: payment.CreatePaymentCommand
 	(*PaymentCompletedEvent)(nil), // 1: payment.PaymentCompletedEvent
 	(*PaymentFailedEvent)(nil),    // 2: payment.PaymentFailedEvent
+	(*PaymentCreatedEvent)(nil),   // 3: payment.PaymentCreatedEvent
 }
 var file_proto_payment_payment_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -270,7 +365,7 @@ func file_proto_payment_payment_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_payment_payment_proto_rawDesc), len(file_proto_payment_payment_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

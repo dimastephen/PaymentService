@@ -54,6 +54,8 @@ func main() {
 			req.Header.Add("Content-Type", "application/json")
 
 			resp, err := client.Do(req)
+			fmt.Printf("request %v sent, status %v\n", i, resp.Status)
+			resp, err = client.Do(req)
 			if err != nil {
 				log.Fatal(err)
 			}

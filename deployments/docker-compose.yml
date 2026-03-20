@@ -89,6 +89,20 @@ services:
       jaeger:
         condition: service_healthy
 
+  projection:
+    build:
+      context: ..
+      dockerfile: deployments/projection.dockerfile
+    env_file:
+      - ../.env.docker
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+
   prometheus:
     image: prom/prometheus:latest
     volumes:

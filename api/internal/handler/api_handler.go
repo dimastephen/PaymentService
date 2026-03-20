@@ -94,7 +94,7 @@ func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	_, err = domain.NewPayment(cmd)
+	err = cmd.Validate()
 	if err != nil {
 		slog.Error("failed to validate cmd", "cmd", cmd)
 		span.RecordError(err)
@@ -116,7 +116,8 @@ func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	err = h.producer.SendMessage(ctx, h.commandTopic, []byte(cmd.IdempotencyKey), req)
+	headers := make(map[string]string)
+	err = h.producer.SendMessage(ctx, h.commandTopic, []byte(cmd.IdempotencyKey), req, headers)
 	if err != nil {
 		slog.Error("failed to send command", "command", cmd)
 		span.RecordError(err)

@@ -14,6 +14,10 @@ type TXDB interface {
 	Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error)
 }
 
+type TransactionManager interface {
+	WithTransaction(ctx context.Context, f func(tx TXDB) error) error
+}
+
 type Storage struct {
 	pool *pgxpool.Pool
 }

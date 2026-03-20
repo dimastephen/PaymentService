@@ -9,13 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/payment-service/projection/internal/config"
+	"github.com/payment-service/projection/internal/handler"
 	"github.com/payment-service/shared/kafka"
-	"github.com/payment-service/shared/psp"
 	"github.com/payment-service/shared/storage"
 	"github.com/payment-service/shared/tracing"
-	"github.com/payment-service/worker/internal/config"
-	"github.com/payment-service/worker/internal/handler"
-	"github.com/payment-service/worker/internal/outbox"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -34,9 +32,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	tp, err := tracing.InitTracer(ctx, "worker", cfg.JaegerURL())
+	tp, err := tracing.InitTracer(ctx, "projection", cfg.JaegerURL())
 	if err != nil {
-		slog.Error("tracer init err", "err", err)
+		slog.Error("Failed to init tracer", "err", err)
 	}
 	defer tp.Shutdown(ctx)
 	otel.SetTextMapPropagator(propagation.TraceContext{})
@@ -45,43 +43,23 @@ func main() {
 		log.Fatal(err)
 	}
 	defer pool.Close()
-	slog.Info("connected to postgres database")
-
-	eventRepo := storage.NewEventRepository(pool)
-	commandRepo := storage.NewCommandRepository(pool)
 	paymentRepo := storage.NewPaymentRepository(pool)
-	outboxRepo := storage.NewOutboxRepository(pool)
-	store := storage.NewStorage(pool)
-
-	syncProducer, err := kafka.NewSyncProducer(cfg.Brokers())
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer syncProducer.Close()
-
-	pspMock := psp.NewFakeProvider()
-	worker := handler.NewWorkerHandler(pspMock, eventRepo, commandRepo, paymentRepo, store, cfg.EventTopic())
-	consumer := kafka.NewConsumer(cfg.Brokers(), cfg.Group(), cfg.CommandTopic(), worker.Handle)
-	outboxWorker := outbox.NewOutboxHandler(syncProducer, outboxRepo)
+	projection := handler.NewProjectionHandler(paymentRepo)
+	consumer := kafka.NewConsumer(cfg.Brokers(), cfg.Group(), cfg.EventTopic(), projection.Handle)
 	defer consumer.Close()
-	slog.Info("consumer started")
 
 	go func() {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
-		err = http.ListenAndServe(":9090", mux)
+		err = http.ListenAndServe(":9091", mux)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 
-	go func() {
-		outboxWorker.Start(ctx)
-	}()
-
 	err = consumer.Start(ctx)
 	if err != nil {
-		slog.Error("Error starting consumer", "error", err)
+		slog.Error("Failed to start consumer", "err", err)
 		os.Exit(1)
 	}
 }
